@@ -76,11 +76,11 @@ class DingTalkStreamClient(object):
             uri = '%s?ticket=%s' % (connection['endpoint'], urllib.parse.quote_plus(connection['ticket']))
             if self.ws_http_proxy is not None:
                 async with aiohttp.ClientSession() as session:
-                    async with session.ws_connect(ws_uri, proxy=self.ws_http_proxy) as ws:
+                    async with session.ws_connect(uri, proxy=self.ws_http_proxy) as ws:
                         await ws.send_str("Hello, WebSocket with HTTP proxy!")
                         while True:
                             raw_message = await ws.receive()
-                            json_message = json.loads(raw_message)
+                            json_message = raw_message.json()
                             route_result = await self.route_message(json_message)
                             if route_result == DingTalkStreamClient.TAG_DISCONNECT:
                                 break
