@@ -77,7 +77,7 @@ class DingTalkStreamClient(object):
             if self.ws_http_proxy is not None:
                 async with aiohttp.ClientSession() as session:
                     async with session.ws_connect(uri, proxy=self.ws_http_proxy) as ws:
-                        await ws.send_str("Hello, WebSocket with HTTP proxy!")
+                        self.websocket = ws
                         while True:
                             raw_message = await ws.receive()
                             json_message = raw_message.json()
@@ -89,9 +89,9 @@ class DingTalkStreamClient(object):
                             #     if msg.data == 'close':
                             #         await ws.close()
                             #         break
-                            elif msg.type == aiohttp.WSMsgType.CLOSED:
+                            elif route_result == aiohttp.WSMsgType.CLOSED:
                                 break
-                            elif msg.type == aiohttp.WSMsgType.ERROR:
+                            elif route_result == aiohttp.WSMsgType.ERROR:
                                 break
             else:
                 async with websockets.connect(uri) as websocket:
@@ -132,7 +132,11 @@ class DingTalkStreamClient(object):
         else:
             self.logger.warning('unknown message, content=%s', json_message)
         if ack:
-            await self.websocket.send(json.dumps(ack.to_dict()))
+            ack_str = json.dumps(ack.to_dict())
+            if self.ws_http_proxy is not None:
+                await self.websocket.send_str(ack_str)
+            else:
+                await self.websocket.send(ack_str)
         return result
 
     def start_forever(self):
