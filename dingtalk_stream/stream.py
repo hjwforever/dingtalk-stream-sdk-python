@@ -13,6 +13,7 @@ import requests
 import socket
 
 import websockets
+import aiohttp
 
 from .credential import Credential
 from .handlers import CallbackHandler
@@ -30,12 +31,13 @@ class DingTalkStreamClient(object):
     OPEN_CONNECTION_API = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/gateway/connections/open'
     TAG_DISCONNECT = 'disconnect'
 
-    def __init__(self, credential: Credential, logger: logging.Logger = None):
+    def __init__(self, credential: Credential, logger: logging.Logger = None, ws_http_proxy: str = None):
         self.credential: Credential = credential
         self.event_handler: EventHandler = EventHandler()
         self.callback_handler_map = {}
         self.system_handler: SystemHandler = SystemHandler()
         self.websocket = None  # create websocket client after connected
+        self.ws_http_proxy = ws_http_proxy
         self.logger: logging.Logger = logger if logger else setup_default_logger('dingtalk_stream.client')
         self._pre_started = False
         self._is_event_required = False
@@ -72,14 +74,34 @@ class DingTalkStreamClient(object):
             self.logger.info('endpoint is %s', connection)
 
             uri = '%s?ticket=%s' % (connection['endpoint'], urllib.parse.quote_plus(connection['ticket']))
-            async with websockets.connect(uri) as websocket:
-                self.websocket = websocket
-                async for raw_message in websocket:
-                    json_message = json.loads(raw_message)
-                    route_result = await self.route_message(json_message)
-                    if route_result == DingTalkStreamClient.TAG_DISCONNECT:
-                        break
-                # self.websocket.close()
+            if self.ws_http_proxy is not None:
+                async with aiohttp.ClientSession() as session:
+                    async with session.ws_connect(ws_uri, proxy=self.ws_http_proxy) as ws:
+                        await ws.send_str("Hello, WebSocket with HTTP proxy!")
+                        while True:
+                            raw_message = await ws.receive()
+                            json_message = json.loads(raw_message)
+                            route_result = await self.route_message(json_message)
+                            if route_result == DingTalkStreamClient.TAG_DISCONNECT:
+                                break
+                            # if msg.type == aiohttp.WSMsgType.TEXT:
+                            #     # print(f"Received: {msg.data}")
+                            #     if msg.data == 'close':
+                            #         await ws.close()
+                            #         break
+                            elif msg.type == aiohttp.WSMsgType.CLOSED:
+                                break
+                            elif msg.type == aiohttp.WSMsgType.ERROR:
+                                break
+            else:
+                async with websockets.connect(uri) as websocket:
+                    self.websocket = websocket
+                    async for raw_message in websocket:
+                        json_message = json.loads(raw_message)
+                        route_result = await self.route_message(json_message)
+                        if route_result == DingTalkStreamClient.TAG_DISCONNECT:
+                            break
+                    # self.websocket.close()
         return
 
     async def route_message(self, json_message):
