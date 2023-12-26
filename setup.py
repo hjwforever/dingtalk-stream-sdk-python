@@ -9,18 +9,19 @@ with open(os.path.join(BASE_PATH, 'dingtalk_stream', 'version.py')) as fp:
     VERSION_STRING = re.findall(r"VERSION_STRING\s*=\s*\'(.*?)\'", content)[0]
 
 setup(
-    name='dingtalk-stream',
+    name='dingtalk-stream-wsproxy',
     version=VERSION_STRING,
-    description='A Python library for sending messages to DingTalk chatbot',
+    description='A Python library for sending messages to DingTalk chatbot, which supports http prxoy for websocket',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    url='https://github.com/open-dingtalk/dingtalk-stream-sdk-python',
-    author='Ke Jie',
-    author_email='jinxi.kj@alibaba-inc.com',
+    url='https://github.com/hjwforever/dingtalk-stream-sdk-python',
+    author='hjwforever',
+    author_email='hjwbelieve@gmail.com',
     license='MIT',
     packages=['dingtalk_stream'],
     install_requires=[
         'websockets>=11.0.2',
+        'aiohttp>=3.9.1',
         'requests>=2.27.1',
         'urllib3==1.26.15',
     ],
